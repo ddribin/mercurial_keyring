@@ -11,6 +11,12 @@ Installation method(s):
 ...
 hgext.mercurial_keyring = /path/to/mercurial_keyring.py
 
+
+2) Drop this file to hgext directory and in ~/.hgrc
+
+[extensions]
+hgext.mercurial_keyring =
+
 """
 
 from mercurial import hg, repo, util
@@ -24,7 +30,7 @@ import keyring
 import getpass
 from urlparse import urlparse
 
-KEYRING_ENTRY_PFX = "Mercurial:%s"
+KEYRING_SERVICE = "Mercurial"
 
 def monkeypatch_method(cls):
     def decorator(func):
@@ -44,9 +50,25 @@ def find_user_password(self, realm, authuri):
     # https://repo.machine.com/repos/apps/module?pairs=0000000000000000000000000000000000000000-0000000000000000000000000000000000000000&cmd=between
     parsed_url = urlparse(authuri)
     base_url = "%s://%s%s" % (parsed_url.scheme, parsed_url.netloc, parsed_url.path)
-
     print "find_user_password", realm, base_url
     
-    # return user, password
-    return None, None
+
+    # TODO: odczyt danych z cache w procesie
+
+    # TODO: odczyt danych już obecnych w keyring-u
+
+    if not self.ui.interactive():
+       raise util.Abort(_('mercurial_keyring: http authorization required'))
+    self.ui.write(_("http authorization required\n"))
+    self.ui.status(_("realm: %s, url: %s\n" % (realm, base_url)))
+    username = self.ui.prompt(_("user:"), default = None)
+    password = self.ui.getpass(_("password for user %s:" % username))
+    
+    # TODO: zapis w keyringu
+
+    # TODO: zapis w cache w procesie
+
+
+    return username, password
+    #return None, None
     
