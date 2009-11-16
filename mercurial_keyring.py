@@ -29,6 +29,7 @@ except:
 import keyring
 import getpass
 from urlparse import urlparse
+import urllib2
 
 KEYRING_SERVICE = "Mercurial"
 
@@ -85,7 +86,24 @@ def find_user_password(self, realm, authuri):
     # https://repo.machine.com/repos/apps/module?pairs=0000000000000000000000000000000000000000-0000000000000000000000000000000000000000&cmd=between
     parsed_url = urlparse(authuri)
     base_url = "%s://%s%s" % (parsed_url.scheme, parsed_url.netloc, parsed_url.path)
-    print "find_user_password", realm, base_url
+
+    #from mercurial import commands, hg
+    #commands.showconfig(self.ui, hg.repository(self.ui, '.'))
+
+    for section, name, value in self.ui.walkconfig():
+            print "cfg", section, name, value
+
+    # Extracting possible username/password stored in repository url
+    user, pwd = urllib2.HTTPPasswordMgrWithDefaultRealm.find_user_password(self, realm, authuri)
+
+    auth_token = self.readauthtoken(base_url)
+    print "token", auth_token
+    print "configitems", list(self.ui.configitems('auth'))
+    print "configitems", list(self.ui.configitems('auth', untrusted=True))
+    print "configitems", list(self.ui.configitems('paths'))
+    print self.ui
+
+    print "find_user_password", realm, base_url, user, pwd, auth_token
     
     user, pwd = password_store.get_password(base_url)
     if user and pwd:
