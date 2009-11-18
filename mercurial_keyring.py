@@ -19,6 +19,9 @@ hgext.mercurial_keyring =
 
 """
 
+#import mercurial.demandimport
+#mercurial.demandimport.disable()
+
 from mercurial import hg, repo, util
 from mercurial.i18n import _
 try:
