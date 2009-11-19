@@ -90,11 +90,22 @@ def find_user_password(self, realm, authuri):
     parsed_url = urlparse(authuri)
     base_url = "%s://%s%s" % (parsed_url.scheme, parsed_url.netloc, parsed_url.path)
 
+    # Problem: self.ui describes the *remote* repository, therefore
+    # does *not* contain options from local .hg/hgrc. No way
+    # to read options from [auth] (username!) using self.ui.
+
+
     #from mercurial import commands, hg
     #commands.showconfig(self.ui, hg.repository(self.ui, '.'))
+    #for section, name, value in self.ui.walkconfig():
+    #    if not section in [ "merge-tools", "extensions" ]:
+    #  	   print "cfg", section, name, value
 
-    for section, name, value in self.ui.walkconfig():
-            print "cfg", section, name, value
+    print "self", self.__dict__
+    print "self.ui", self.ui.__dict__
+    print "self.ui._tcfg", self.ui._tcfg.__dict__
+    print "self.ui._ocfg", self.ui._ocfg.__dict__
+    print "self.ui._ucfg", self.ui._ucfg.__dict__
 
     # Extracting possible username/password stored in repository url
     user, pwd = urllib2.HTTPPasswordMgrWithDefaultRealm.find_user_password(self, realm, authuri)
