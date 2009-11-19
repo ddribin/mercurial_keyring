@@ -28,6 +28,7 @@ try:
 	from mercurial.url import passwordmgr
 except:
 	from mercurial.httprepo import passwordmgr
+from mercurial.httprepo import httprepository
 
 import keyring
 import getpass
@@ -70,6 +71,8 @@ class PasswordStore(object):
         keyring.set_password(KEYRING_SERVICE,
                              self._format_key(url, username),
                              password)
+    def clear_password(self, url, username):
+        self.set_password(url, username, "")
     def _format_key(self, url, username):
         return "%s@@%s" % (username, url)
 
@@ -100,8 +103,8 @@ def find_user_password(self, realm, authuri):
     cache_key = (realm, base_url)
     cached_auth = self._pwd_cache.get(cache_key)
     if cached_auth:
-       self.ui.debug("Found cached auth tokens: %s, %s\n" % (
-                       cached_auth[0], cached_auth[1] and '********' or ''))
+       self.ui.debug("Found cached auth tokens for %s: %s, %s\n" % (
+            base_url, cached_auth[0], cached_auth[1] and '********' or ''))
        return cached_auth
 
     # Loading username (and maybe password) from [auth] in local .hg/hgrc
@@ -130,12 +133,14 @@ def find_user_password(self, realm, authuri):
                  user, pwd and '********' or ''))
 
     # username still not known? Asking
+    prompted = False
     if not user:
        if not self.ui.interactive():
           raise util.Abort(_('mercurial_keyring: http authorization required'))
        self.ui.write(_("http authorization required\n"))
        self.ui.status(_("realm: %s\n") % realm)
        user = self.ui.prompt(_("user:"), default=None)
+       prompted = True
     
     # username known and still no password? Time to check keyring
     if user and not pwd:
@@ -145,14 +150,36 @@ def find_user_password(self, realm, authuri):
 
     # password still not known? Asking
     if not pwd:
-       if not self.ui.interactive():
-          raise util.Abort(_('mercurial_keyring: http authorization required'))
-       pwd = self.ui.getpass(_("password: "))
+       if not prompted:
+          if not self.ui.interactive():
+             raise util.Abort(_('mercurial_keyring: http authorization required'))
+          self.ui.write(_("http authorization required\n"))
+          self.ui.status(_("realm: %s\n") % realm)
+          pwd = self.ui.getpass(_("password for %s: ") % user)
+       else:    
+          pwd = self.ui.getpass(_("password: "))
        password_store.set_password(base_url, user, pwd)
        self.ui.debug("Saved keyring password for %s\n" % user)
 
     self._pwd_cache[cache_key] = (user, pwd)
 
+    self.ui.debug("Returning auth tokens for %s: %s, %s\n" % (
+         base_url, user, pwd and '********' or ''))
     return user, pwd
     #return None, None
 
+############################################################
+
+# We patch httprespository.do_cmd to grab information that
+# the request failed due to wrong auth - and clear the wrong
+# password
+
+orig_do_cmd = httprepository.do_cmd
+
+@monkeypatch_method(httprepository)
+def do_cmd(self, cmd, **args):
+    try:
+        orig_do_cmd(self, cmd, **args)
+    except util.Abort, e:
+        self.ui.debug("Authorization failed for %s\n" % self.url())
+        raise
