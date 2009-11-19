@@ -100,6 +100,8 @@ def find_user_password(self, realm, authuri):
     cache_key = (realm, base_url)
     cached_auth = self._pwd_cache.get(cache_key)
     if cached_auth:
+       self.ui.debug("Found cached auth tokens: %s, %s\n" % (
+                       cached_auth[0], cached_auth[1] and '********' or ''))
        return cached_auth
 
     # Loading username (and maybe password) from [auth] in local .hg/hgrc
@@ -124,6 +126,8 @@ def find_user_password(self, realm, authuri):
           auth_token = local_passwordmgr.readauthtoken(base_url)
           if auth_token:
              user, pwd = auth_token.get('username'), auth_token.get('password')
+             self.ui.debug("Found .hg/hgrc auth tokens: %s, %s\n" % (
+                 user, pwd and '********' or ''))
 
     # username still not known? Asking
     if not user:
@@ -136,6 +140,8 @@ def find_user_password(self, realm, authuri):
     # username known and still no password? Time to check keyring
     if user and not pwd:
        pwd = password_store.get_password(base_url, user)
+       if pwd:
+          self.ui.debug("Found keyring password for %s\n" % user)
 
     # password still not known? Asking
     if not pwd:
@@ -143,6 +149,7 @@ def find_user_password(self, realm, authuri):
           raise util.Abort(_('mercurial_keyring: http authorization required'))
        pwd = self.ui.getpass(_("password: "))
        password_store.set_password(base_url, user, pwd)
+       self.ui.debug("Saved keyring password for %s\n" % user)
 
     self._pwd_cache[cache_key] = (user, pwd)
 
