@@ -230,19 +230,3 @@ def find_user_password(self, realm, authuri):
 
     return self._pwd_handler.find_auth(self, realm, authuri)
 
-
-############################################################
-
-# We patch httprespository.do_cmd to grab information that
-# the request failed due to wrong auth - and clear the wrong
-# password
-
-orig_do_cmd = httprepository.do_cmd
-
-@monkeypatch_method(httprepository)
-def do_cmd(self, cmd, **args):
-    try:
-        orig_do_cmd(self, cmd, **args)
-    except util.Abort, e:
-        self.ui.debug("Authorization failed for %s\n" % self.url())
-        raise
