@@ -85,39 +85,48 @@ def find_user_password(self, realm, authuri):
     Passwords are saved in gnome keyring, OSX/Chain or other platform
     specific storage and keyed by the repository url
     """
-    # Calculate the true url. authuri happens to contain things like
+    # Calculate the true remote url. authuri happens to contain things like
     # https://repo.machine.com/repos/apps/module?pairs=0000000000000000000000000000000000000000-0000000000000000000000000000000000000000&cmd=between
     parsed_url = urlparse(authuri)
     base_url = "%s://%s%s" % (parsed_url.scheme, parsed_url.netloc, parsed_url.path)
 
-    # Problem: self.ui describes the *remote* repository, therefore
-    # does *not* contain options from local .hg/hgrc. No way
-    # to read options from [auth] (username!) using self.ui.
-
-
-    #from mercurial import commands, hg
-    #commands.showconfig(self.ui, hg.repository(self.ui, '.'))
-    #for section, name, value in self.ui.walkconfig():
-    #    if not section in [ "merge-tools", "extensions" ]:
-    #  	   print "cfg", section, name, value
-
-    print "self", self.__dict__
-    print "self.ui", self.ui.__dict__
-    print "self.ui._tcfg", self.ui._tcfg.__dict__
-    print "self.ui._ocfg", self.ui._ocfg.__dict__
-    print "self.ui._ucfg", self.ui._ucfg.__dict__
-
-    # Extracting possible username/password stored in repository url
+    # Extracting possible username/password stored in directly in repository url
     user, pwd = urllib2.HTTPPasswordMgrWithDefaultRealm.find_user_password(self, realm, authuri)
 
-    auth_token = self.readauthtoken(base_url)
-    print "token", auth_token
-    print "configitems", list(self.ui.configitems('auth'))
-    print "configitems", list(self.ui.configitems('auth', untrusted=True))
-    print "configitems", list(self.ui.configitems('paths'))
-    print self.ui
+    # Checking the local cache (single command may repeat the call many
+    # times)
+    if not hasattr(self, '_pwd_cache'):
+       self._pwd_cache = {}
+    cache_key = (realm, base_url)
+    cached_auth = self._pwd_cache.get(cache_key)
+    if cached_auth:
+       return cached_auth
 
-    print "find_user_password", realm, base_url, user, pwd, auth_token
+    # Loading username (and maybe password) from [auth] in local .hg/hgrc
+    if not user:
+       # Lines below unfortunately do not work, readauthtoken
+       # always return None. Why? Because
+       # self.ui here describes the *remote* repository, so 
+       # does *not* contain any option from local .hg/hgrc. 
+       #
+       #auth_token = self.readauthtoken(base_url)
+       #if auth_token:
+       #   user, pwd = auth.get('username'), auth.get('password')
+       #
+       # so - workaround
+       repo_root = self.ui.config("bundle", "mainreporoot")
+       if repo_root:
+          from mercurial.ui import ui as _ui
+          import os
+          local_ui = _ui(self.ui)
+          local_ui.readconfig(os.path.join(repo_root, ".hg", "hgrc"))
+          local_passwordmgr = passwordmgr(local_ui)
+          auth_token = local_passwordmgr.readauthtoken(base_url)
+          if auth_token:
+             user, pwd = auth.get('username'), auth.get('password')
+
+
+
     
     user, pwd = password_store.get_password(base_url)
     if user and pwd:
