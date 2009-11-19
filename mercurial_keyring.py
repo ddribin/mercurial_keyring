@@ -63,15 +63,15 @@ class PasswordStore(object):
     """
     def __init__(self):
         self.cache = dict()
-    def save_password(self, url, username, password):
-        self.cache[url] = (username, password)
-        # TODO: keyring save
-    def get_password(self, url):
-        r = self.cache.get(url)    
-        if r:
-           return r
-        # TODO: keyring restore
-        return None, None
+    def get_password(self, url, username):
+        return keyring.get_password(KEYRING_SERVICE,
+                                    self._format_key(url, username))
+    def set_password(self, url, username, password):
+        keyring.set_password(KEYRING_SERVICE,
+                             self._format_key(url, username),
+                             password)
+    def _format_key(self, url, username):
+        return "%s@@%s" % (username, url)
 
 password_store = PasswordStore()
 
@@ -123,23 +123,28 @@ def find_user_password(self, realm, authuri):
           local_passwordmgr = passwordmgr(local_ui)
           auth_token = local_passwordmgr.readauthtoken(base_url)
           if auth_token:
-             user, pwd = auth.get('username'), auth.get('password')
+             user, pwd = auth_token.get('username'), auth_token.get('password')
 
-
-
+    # username still not known? Asking
+    if not user:
+       if not self.ui.interactive():
+          raise util.Abort(_('mercurial_keyring: http authorization required'))
+       self.ui.write(_("http authorization required\n"))
+       self.ui.status(_("realm: %s\n") % realm)
+       user = self.ui.prompt(_("user:"), default=None)
     
-    user, pwd = password_store.get_password(base_url)
-    if user and pwd:
-       return user, pwd
+    # username known and still no password? Time to check keyring
+    if user and not pwd:
+       pwd = password_store.get_password(base_url, user)
 
-    if not self.ui.interactive():
-       raise util.Abort(_('mercurial_keyring: http authorization required'))
-    self.ui.write(_("http authorization required\n"))
-    self.ui.status(_("realm: %s, url: %s\n" % (realm, base_url)))
-    user = self.ui.prompt(_("user:"), default = user)
-    pwd = self.ui.getpass(_("password: "))
+    # password still not known? Asking
+    if not pwd:
+       if not self.ui.interactive():
+          raise util.Abort(_('mercurial_keyring: http authorization required'))
+       pwd = self.ui.getpass(_("password: "))
+       password_store.set_password(base_url, user, pwd)
 
-    password_store.save_password(base_url, user, pwd)
+    self._pwd_cache[cache_key] = (user, pwd)
 
     return user, pwd
     #return None, None
