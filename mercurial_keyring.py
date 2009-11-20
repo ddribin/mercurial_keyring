@@ -1,26 +1,112 @@
 # -*- coding: utf-8 -*-
+#
+# mercurial_keyring: save passwords in password database
+#
+# Copyright 2009 Marcin Kasperski <Marcin.Kasperski@mekk.waw.pl>
+#
+# This software may be used and distributed according to the terms
+# of the GNU General Public License, incorporated herein by reference.
+
 
 """
-Storing HTTP authentication passwords in keyring database.
+=================
+mercurial_keyring
+=================
 
-Installation method(s):
+Mercurial extension to securely save HTTP authentication passwords
+in password databases (Gnome Keyring, KDE KWallet, OSXKeyChain, 
+specific solutions for Win32 and command line). Uses and wraps
+services of the keyring_ library.
 
-1) in ~/.hgrc (or /etc/hgext/...)
+.. _keyring: http://pypi.python.org/pypi/keyring
 
-[extensions]
-...
-hgext.mercurial_keyring = /path/to/mercurial_keyring.py
+How does it work
+================
 
+The extension prompts for the password on the first pull/push as it is
+done by default, but saves the given password (keyed by the
+combination of username and remote repository url) in the password
+database. On the next run it checks for the username in ``.hg/hgrc``,
+then for suitable password in the password database, and uses those
+credentials if found.
 
-2) Drop this file to hgext directory and in ~/.hgrc
+In case password turns out incorrect (either because it was invalid,
+or because it was changed on the server) it just prompts the user
+again.
 
-[extensions]
-hgext.mercurial_keyring =
+Installation
+============
+
+Install keyring library:
+
+::
+
+    easy_install keyring
+
+(or ``pip keyring``)
+
+Either save mercurial_keyring.py anywhere and put the following
+in ~/.hgrc (or /etc/mercurial/hgrc):
+
+::
+
+    [extensions]
+    hgext.mercurial_keyring = /path/to/mercurial_keyring.py
+
+or save mercurial_keyring.py to mercurial/hgext directory and use
+
+::
+
+    [extensions]
+    hgext.mercurial_keyring = 
+
+Password backend configuration
+==============================
+
+The library should usually pick the most appropriate password backend
+without configuration. Still, if necessary, it can be configured using
+``~/keyringrc.cfg`` file (``keyringrc.cfg`` in the home directory of
+the current user). Refer to keyring_ docs for more details.
+
+*I considered handling similar options in hgrc, but decided that
+single person may use more than one keyring-based script. Still, I am
+open to suggestions.*
+
+Repository configuration
+========================
+
+Edit repository-local ``.hg/hgrc`` and save there the remote repository
+path and the username, but do not save the password. For example:
+
+::
+
+    [paths]
+    myremote = https://my.server.com/hgrepo/someproject
+
+    [auth]
+    myremote.schemes = http https
+    myremote.prefix = my.server.com/hgrepo
+    myremote.username = mekk
+
+Note: if both username and password are given in ``.hg/hgrc``, extension
+will use them without using the password database. If username is not
+given, extension will prompt for credentials every time, also without
+saving the password. 
+
+Usage
+=====
+
+Configure the repository as above, then just pull and push.
+You should be asked for the password only once (per every
+username+remote_repository_url combination).
+
+Implementation details
+======================
+
+The extension is monkey-patching the mercurial passwordmgr class
+to replace the find_user_password method. 
 
 """
-
-#import mercurial.demandimport
-#mercurial.demandimport.disable()
 
 from mercurial import hg, repo, util
 from mercurial.i18n import _
@@ -39,15 +125,6 @@ KEYRING_SERVICE = "Mercurial"
 
 ############################################################
 
-def monkeypatch_class(name, bases, namespace):
-    """http://mail.python.org/pipermail/python-dev/2008-January/076194.html"""
-    assert len(bases) == 1, "Exactly one base class required"
-    base = bases[0]
-    for name, value in namespace.iteritems():
-        if name != "__metaclass__":
-           setattr(base, name, value)
-    return base
-
 def monkeypatch_method(cls):
     def decorator(func):
         setattr(cls, func.__name__, func)
@@ -58,7 +135,8 @@ def monkeypatch_method(cls):
 
 class PasswordStore(object):
     """
-    Helper object handling keyring usage (password save&restore).
+    Helper object handling keyring usage (password save&restore,
+    the way passwords are keyed in the keyring).
     """
     def __init__(self):
         self.cache = dict()
@@ -91,21 +169,24 @@ class PasswordHandler(object):
 
     def find_auth(self, pwmgr, realm, authuri):
         """
-        Actual implementation of find_user_password
+        Actual implementation of find_user_password - different
+        ways of obtaining the username and password.
         """
         ui = pwmgr.ui
 
-        # If we are called again just after identical previous request,
-        # then the previously returned auth must have been wrong. So we
-        # note this to force password prompt
+        # If we are called again just after identical previous
+        # request, then the previously returned auth must have been
+        # wrong. So we note this to force password prompt (and avoid
+        # reusing bad password indifinitely).
         after_bad_auth = (self.last_reply \
            and (self.last_reply['realm'] == realm) \
            and (self.last_reply['authuri'] == authuri))
            
+        # Strip arguments to get actual remote repository url.
         base_url = self.canonical_url(authuri)
 
         # Extracting possible username (or password)
-        # stored in directly in repository url
+        # stored directly in repository url
         user, pwd = urllib2.HTTPPasswordMgrWithDefaultRealm.find_user_password(pwmgr, realm, authuri)
         if user and pwd:
            self._debug_reply(ui, _("Auth data found in repository URL"), base_url, user, pwd)
@@ -122,7 +203,7 @@ class PasswordHandler(object):
               self.last_reply = dict(realm=realm,authuri=authuri,user=user)
               return user, pwd
 
-        # Loading username and maybe password from [auth]
+        # Loading username and maybe password from [auth] in .hg/hgrc
         nuser, pwd = self.load_hgrc_auth(ui, base_url)
         if nuser:
            if user:
@@ -136,7 +217,9 @@ class PasswordHandler(object):
            else:
               ui.debug(_("Username found in .hg/hgrc: %s\n" % user))
 
-        # If username is known, and we are not after failure, we can try keyring
+        # Loading password from keyring. 
+        # Only if username is known (so we know the key) and we are not after failure (so
+        # we don't reuse the bad password).
         if user and not after_bad_auth:
            pwd = password_store.get_password(base_url, user)
            if pwd:
@@ -145,6 +228,7 @@ class PasswordHandler(object):
               self.last_reply = dict(realm=realm,authuri=authuri,user=user)
               return user, pwd
         
+        # Is the username permanently set?
         fixed_user = (user and True or False)
 
         # Last resort: interactive prompt
@@ -159,13 +243,16 @@ class PasswordHandler(object):
         pwd = ui.getpass(_("password: "))
 
         if fixed_user:
-           # We save in keyring only if username is fixed. Otherwise we won't
-           # be able to find the password so it does not make any sense to 
+           # Saving password to the keyring.
+           # It is done only if username is fixed. Otherwise we won't
+           # be able to find the password so it does not make much sense to 
            # preserve it
            ui.debug("Saving password for %s to keyring\n" % user)
            password_store.set_password(base_url, user, pwd)
 
+        # Saving password to the memory cache
         self.pwd_cache[cache_key] = user, pwd
+
         self._debug_reply(ui, _("Manually entered password"), base_url, user, pwd)
         self.last_reply = dict(realm=realm,authuri=authuri,user=user)
         return user, pwd
@@ -175,10 +262,12 @@ class PasswordHandler(object):
         Loading username and possibly password from [auth] in local
         repo .hgrc
         """
-        # Lines below unfortunately do not work, readauthtoken
-        # always return None. Why? Because
-        # ui (self.ui of passwordmgr)  describes the *remote* repository, so 
-        # does *not* contain any option from local .hg/hgrc. 
+        # Theoretically 3 lines below should do. 
+        #
+        # Unfortunately they do not work, readauthtoken always return
+        # None. Why? Because ui (self.ui of passwordmgr) describes the
+        # *remote* repository, so does *not* contain any option from
+        # local .hg/hgrc.
 
         #auth_token = self.readauthtoken(base_url)
         #if auth_token:
@@ -212,9 +301,6 @@ class PasswordHandler(object):
         ui.debug("%s. Url: %s, user: %s, passwd: %s\n" % (msg, url, user, pwd and '*' * len(pwd) or 'not set'))
 
 ############################################################
-
-# The idea: if we are re-asked with exactly the same params
-# (authuri, not base_url) then password must have been wrong.
 
 @monkeypatch_method(passwordmgr)
 def find_user_password(self, realm, authuri):
