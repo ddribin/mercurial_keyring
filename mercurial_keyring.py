@@ -7,7 +7,6 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-
 """
 =================
 mercurial_keyring
@@ -87,6 +86,13 @@ path and the username, but do not save the password. For example:
     myremote.schemes = http https
     myremote.prefix = my.server.com/hgrepo
     myremote.username = mekk
+
+Simpler form with url-embedded name can also be used:
+
+::
+
+    [paths]
+    bitbucket = https://User@bitbucket.org/User/project_name/
 
 Note: if both username and password are given in ``.hg/hgrc``, extension
 will use them without using the password database. If username is not
