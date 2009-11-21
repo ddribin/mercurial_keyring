@@ -3,3 +3,5 @@ syntax: regexp
 \.pyc$
 ~$
 ^\.\#
+^\.(project|pydevproject)$
+^\.settings/
