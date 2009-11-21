@@ -119,9 +119,9 @@ is described in the comments inside the code.
 from mercurial import hg, repo, util
 from mercurial.i18n import _
 try:
-	from mercurial.url import passwordmgr
+    from mercurial.url import passwordmgr
 except:
-	from mercurial.httprepo import passwordmgr
+    from mercurial.httprepo import passwordmgr
 from mercurial.httprepo import httprepository
 
 import keyring
@@ -174,7 +174,7 @@ class PasswordHandler(object):
     def __init__(self):
         self.pwd_cache = {}
         self.last_reply = None
-
+        
     def find_auth(self, pwmgr, realm, authuri):
         """
         Actual implementation of find_user_password - different
@@ -187,8 +187,8 @@ class PasswordHandler(object):
         # wrong. So we note this to force password prompt (and avoid
         # reusing bad password indifinitely).
         after_bad_auth = (self.last_reply \
-           and (self.last_reply['realm'] == realm) \
-           and (self.last_reply['authuri'] == authuri))
+                          and (self.last_reply['realm'] == realm) \
+                          and (self.last_reply['authuri'] == authuri))
            
         # Strip arguments to get actual remote repository url.
         base_url = self.canonical_url(authuri)
@@ -196,72 +196,72 @@ class PasswordHandler(object):
         # Extracting possible username (or password)
         # stored directly in repository url
         user, pwd = urllib2.HTTPPasswordMgrWithDefaultRealm.find_user_password(
-                pwmgr, realm, authuri)
+            pwmgr, realm, authuri)
         if user and pwd:
-           self._debug_reply(ui, _("Auth data found in repository URL"), 
-                             base_url, user, pwd)
-           self.last_reply = dict(realm=realm,authuri=authuri,user=user)
-           return user, pwd
+            self._debug_reply(ui, _("Auth data found in repository URL"), 
+                              base_url, user, pwd)
+            self.last_reply = dict(realm=realm,authuri=authuri,user=user)
+            return user, pwd
 
         # Checking the memory cache (there may be many http calls per command)
         cache_key = (realm, base_url)
         if not after_bad_auth:
-           cached_auth = self.pwd_cache.get(cache_key)
-           if cached_auth:
-              user, pwd = cached_auth
-              self._debug_reply(ui, _("Cached auth data found"), 
-                                base_url, user, pwd)
-              self.last_reply = dict(realm=realm,authuri=authuri,user=user)
-              return user, pwd
+            cached_auth = self.pwd_cache.get(cache_key)
+            if cached_auth:
+                user, pwd = cached_auth
+                self._debug_reply(ui, _("Cached auth data found"), 
+                                  base_url, user, pwd)
+                self.last_reply = dict(realm=realm,authuri=authuri,user=user)
+                return user, pwd
 
         # Loading username and maybe password from [auth] in .hg/hgrc
         nuser, pwd = self.load_hgrc_auth(ui, base_url)
         if nuser:
-           if user:
-              raise util.Abort(_('mercurial_keyring: username for %s specified both in repository path (%s) and in .hg/hgrc/[auth] (%s). Please, leave only one of those' % (base_url, user, nuser)))
-           user = nuser
-           if pwd:
-              self.pwd_cache[cache_key] = user, pwd
-              self._debug_reply(ui, _("Auth data set in .hg/hgrc"), 
-                                base_url, user, pwd)
-              self.last_reply = dict(realm=realm,authuri=authuri,user=user)
-              return user, pwd
-           else:
-              ui.debug(_("Username found in .hg/hgrc: %s\n" % user))
+            if user:
+                raise util.Abort(_('mercurial_keyring: username for %s specified both in repository path (%s) and in .hg/hgrc/[auth] (%s). Please, leave only one of those' % (base_url, user, nuser)))
+            user = nuser
+            if pwd:
+                self.pwd_cache[cache_key] = user, pwd
+                self._debug_reply(ui, _("Auth data set in .hg/hgrc"), 
+                                  base_url, user, pwd)
+                self.last_reply = dict(realm=realm,authuri=authuri,user=user)
+                return user, pwd
+            else:
+                ui.debug(_("Username found in .hg/hgrc: %s\n" % user))
 
         # Loading password from keyring. 
         # Only if username is known (so we know the key) and we are
         # not after failure (so we don't reuse the bad password).
         if user and not after_bad_auth:
-           pwd = password_store.get_password(base_url, user)
-           if pwd:
-              self.pwd_cache[cache_key] = user, pwd
-              self._debug_reply(ui, _("Keyring password found"), 
-                                base_url, user, pwd)
-              self.last_reply = dict(realm=realm,authuri=authuri,user=user)
-              return user, pwd
+            pwd = password_store.get_password(base_url, user)
+            if pwd:
+                self.pwd_cache[cache_key] = user, pwd
+                self._debug_reply(ui, _("Keyring password found"), 
+                                  base_url, user, pwd)
+                self.last_reply = dict(realm=realm,authuri=authuri,user=user)
+                return user, pwd
         
         # Is the username permanently set?
         fixed_user = (user and True or False)
 
         # Last resort: interactive prompt
         if not ui.interactive():
-           raise util.Abort(_('mercurial_keyring: http authorization required'))
+            raise util.Abort(_('mercurial_keyring: http authorization required'))
         ui.write(_("http authorization required\n"))
         ui.status(_("realm: %s\n") % realm)
         if fixed_user:
-           ui.write(_("user: %s (fixed in .hg/hgrc)\n" % user))
+            ui.write(_("user: %s (fixed in .hg/hgrc)\n" % user))
         else:
-           user = ui.prompt(_("user:"), default=None)
+            user = ui.prompt(_("user:"), default=None)
         pwd = ui.getpass(_("password: "))
 
         if fixed_user:
-           # Saving password to the keyring.
-           # It is done only if username is permanently set.
-           # Otherwise we won't be able to find the password so it
-           # does not make much sense to preserve it
-           ui.debug("Saving password for %s to keyring\n" % user)
-           password_store.set_password(base_url, user, pwd)
+            # Saving password to the keyring.
+            # It is done only if username is permanently set.
+            # Otherwise we won't be able to find the password so it
+            # does not make much sense to preserve it
+            ui.debug("Saving password for %s to keyring\n" % user)
+            password_store.set_password(base_url, user, pwd)
 
         # Saving password to the memory cache
         self.pwd_cache[cache_key] = user, pwd
@@ -276,28 +276,28 @@ class PasswordHandler(object):
         Loading username and possibly password from [auth] in local
         repo .hgrc
         """
-        # Theoretically 3 lines below should do. 
-        #
+        # Theoretically 3 lines below should do:
+        
+        #auth_token = self.readauthtoken(base_url)
+        #if auth_token:
+        #   user, pwd = auth.get('username'), auth.get('password')
+        
         # Unfortunately they do not work, readauthtoken always return
         # None. Why? Because ui (self.ui of passwordmgr) describes the
         # *remote* repository, so does *not* contain any option from
         # local .hg/hgrc.
 
-        #auth_token = self.readauthtoken(base_url)
-        #if auth_token:
-        #   user, pwd = auth.get('username'), auth.get('password')
-     
         # Workaround: we recreate the repository object
         repo_root = ui.config("bundle", "mainreporoot")
         if repo_root:
-           from mercurial.ui import ui as _ui
-           import os
-           local_ui = _ui(ui)
-           local_ui.readconfig(os.path.join(repo_root, ".hg", "hgrc"))
-           local_passwordmgr = passwordmgr(local_ui)
-           auth_token = local_passwordmgr.readauthtoken(base_url)
-           if auth_token:
-              return auth_token.get('username'), auth_token.get('password')
+            from mercurial.ui import ui as _ui
+            import os
+            local_ui = _ui(ui)
+            local_ui.readconfig(os.path.join(repo_root, ".hg", "hgrc"))
+            local_passwordmgr = passwordmgr(local_ui)
+            auth_token = local_passwordmgr.readauthtoken(base_url)
+            if auth_token:
+                return auth_token.get('username'), auth_token.get('password')
         return None, None
 
     def canonical_url(self, authuri):
@@ -326,7 +326,7 @@ def find_user_password(self, realm, authuri):
     """
     # Extend object attributes
     if not hasattr(self, '_pwd_handler'):
-       self._pwd_handler = PasswordHandler()
+        self._pwd_handler = PasswordHandler()
 
     return self._pwd_handler.find_auth(self, realm, authuri)
 
