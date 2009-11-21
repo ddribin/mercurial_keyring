@@ -12,10 +12,10 @@
 mercurial_keyring
 =================
 
-Mercurial extension to securely save HTTP authentication passwords
-in password databases (Gnome Keyring, KDE KWallet, OSXKeyChain, 
-specific solutions for Win32 and command line). Uses and wraps
-services of the keyring_ library.
+Mercurial extension to securely save HTTP authentication passwords in
+password databases (Gnome Keyring, KDE KWallet, OSXKeyChain, specific
+solutions for Win32 and command line). Uses and wraps services of the
+keyring_ library.
 
 .. _keyring: http://pypi.python.org/pypi/keyring
 
@@ -29,9 +29,9 @@ database. On the next run it checks for the username in ``.hg/hgrc``,
 then for suitable password in the password database, and uses those
 credentials if found.
 
-In case password turns out incorrect (either because it was invalid,
-or because it was changed on the server) it just prompts the user
-again.
+In case password turns out to be incorrect (either because it was
+invalid, or because it was changed on the server) it just prompts the
+user again.
 
 Installation
 ============
@@ -74,8 +74,9 @@ open to suggestions.*
 Repository configuration
 ========================
 
-Edit repository-local ``.hg/hgrc`` and save there the remote repository
-path and the username, but do not save the password. For example:
+Edit repository-local ``.hg/hgrc`` and save there the remote
+repository path and the username, but do not save the password. For
+example:
 
 ::
 
@@ -94,23 +95,24 @@ Simpler form with url-embedded name can also be used:
     [paths]
     bitbucket = https://User@bitbucket.org/User/project_name/
 
-Note: if both username and password are given in ``.hg/hgrc``, extension
-will use them without using the password database. If username is not
-given, extension will prompt for credentials every time, also without
-saving the password. 
+Note: if both username and password are given in ``.hg/hgrc``,
+extension will use them without using the password database. If
+username is not given, extension will prompt for credentials every
+time, also without saving the password.
 
 Usage
 =====
 
-Configure the repository as above, then just pull and push.
+Configure the repository as above, then just pull and push.  
 You should be asked for the password only once (per every
 username+remote_repository_url combination).
 
 Implementation details
 ======================
 
-The extension is monkey-patching the mercurial passwordmgr class
-to replace the find_user_password method. 
+The extension is monkey-patching the mercurial passwordmgr class to
+replace the find_user_password method. Detailed order of operations
+is described in the comments inside the code.
 
 """
 
@@ -193,9 +195,11 @@ class PasswordHandler(object):
 
         # Extracting possible username (or password)
         # stored directly in repository url
-        user, pwd = urllib2.HTTPPasswordMgrWithDefaultRealm.find_user_password(pwmgr, realm, authuri)
+        user, pwd = urllib2.HTTPPasswordMgrWithDefaultRealm.find_user_password(
+                pwmgr, realm, authuri)
         if user and pwd:
-           self._debug_reply(ui, _("Auth data found in repository URL"), base_url, user, pwd)
+           self._debug_reply(ui, _("Auth data found in repository URL"), 
+                             base_url, user, pwd)
            self.last_reply = dict(realm=realm,authuri=authuri,user=user)
            return user, pwd
 
@@ -205,7 +209,8 @@ class PasswordHandler(object):
            cached_auth = self.pwd_cache.get(cache_key)
            if cached_auth:
               user, pwd = cached_auth
-              self._debug_reply(ui, _("Cached auth data found"), base_url, user, pwd)
+              self._debug_reply(ui, _("Cached auth data found"), 
+                                base_url, user, pwd)
               self.last_reply = dict(realm=realm,authuri=authuri,user=user)
               return user, pwd
 
@@ -217,20 +222,22 @@ class PasswordHandler(object):
            user = nuser
            if pwd:
               self.pwd_cache[cache_key] = user, pwd
-              self._debug_reply(ui, _("Auth data set in .hg/hgrc"), base_url, user, pwd)
+              self._debug_reply(ui, _("Auth data set in .hg/hgrc"), 
+                                base_url, user, pwd)
               self.last_reply = dict(realm=realm,authuri=authuri,user=user)
               return user, pwd
            else:
               ui.debug(_("Username found in .hg/hgrc: %s\n" % user))
 
         # Loading password from keyring. 
-        # Only if username is known (so we know the key) and we are not after failure (so
-        # we don't reuse the bad password).
+        # Only if username is known (so we know the key) and we are
+        # not after failure (so we don't reuse the bad password).
         if user and not after_bad_auth:
            pwd = password_store.get_password(base_url, user)
            if pwd:
               self.pwd_cache[cache_key] = user, pwd
-              self._debug_reply(ui, _("Keyring password found"), base_url, user, pwd)
+              self._debug_reply(ui, _("Keyring password found"), 
+                                base_url, user, pwd)
               self.last_reply = dict(realm=realm,authuri=authuri,user=user)
               return user, pwd
         
@@ -250,16 +257,17 @@ class PasswordHandler(object):
 
         if fixed_user:
            # Saving password to the keyring.
-           # It is done only if username is fixed. Otherwise we won't
-           # be able to find the password so it does not make much sense to 
-           # preserve it
+           # It is done only if username is permanently set.
+           # Otherwise we won't be able to find the password so it
+           # does not make much sense to preserve it
            ui.debug("Saving password for %s to keyring\n" % user)
            password_store.set_password(base_url, user, pwd)
 
         # Saving password to the memory cache
         self.pwd_cache[cache_key] = user, pwd
 
-        self._debug_reply(ui, _("Manually entered password"), base_url, user, pwd)
+        self._debug_reply(ui, _("Manually entered password"), 
+                          base_url, user, pwd)
         self.last_reply = dict(realm=realm,authuri=authuri,user=user)
         return user, pwd
 
@@ -292,10 +300,9 @@ class PasswordHandler(object):
               return auth_token.get('username'), auth_token.get('password')
         return None, None
 
-
     def canonical_url(self, authuri):
         """
-        Strips query params from url. Used to convert
+        Strips query params from url. Used to convert urls like
         https://repo.machine.com/repos/apps/module?pairs=0000000000000000000000000000000000000000-0000000000000000000000000000000000000000&cmd=between
         to
         https://repo.machine.com/repos/apps/module
@@ -304,7 +311,8 @@ class PasswordHandler(object):
         return "%s://%s%s" % (parsed_url.scheme, parsed_url.netloc, parsed_url.path)
 
     def _debug_reply(self, ui, msg, url, user, pwd):
-        ui.debug("%s. Url: %s, user: %s, passwd: %s\n" % (msg, url, user, pwd and '*' * len(pwd) or 'not set'))
+        ui.debug("%s. Url: %s, user: %s, passwd: %s\n" % (
+            msg, url, user, pwd and '*' * len(pwd) or 'not set'))
 
 ############################################################
 
