@@ -42,17 +42,20 @@ Install keyring library:
 
     easy_install keyring
 
-(or ``pip keyring``)
+(or ``pip keyring``). On Debian "Sid" the library can be also
+installed from the official archive (packages ``python-keyring``,
+``python-keyring-gnome`` and ``python-keyring-kwallet``).
 
-Either save mercurial_keyring.py anywhere and put the following
-in ~/.hgrc (or /etc/mercurial/hgrc):
+Then either save ``mercurial_keyring.py`` anywhere and put the
+following in ~/.hgrc (or /etc/mercurial/hgrc):
 
 ::
 
     [extensions]
     hgext.mercurial_keyring = /path/to/mercurial_keyring.py
 
-or save mercurial_keyring.py to mercurial/hgext directory and use
+or save ``mercurial_keyring.py`` to ``mercurial/hgext`` directory and
+use
 
 ::
 
@@ -67,9 +70,9 @@ without configuration. Still, if necessary, it can be configured using
 ``~/keyringrc.cfg`` file (``keyringrc.cfg`` in the home directory of
 the current user). Refer to keyring_ docs for more details.
 
-*I considered handling similar options in hgrc, but decided that
-single person may use more than one keyring-based script. Still, I am
-open to suggestions.*
+''I considered handling similar options in hgrc, but decided that
+single user may use more than one keyring-based script. Still, I am
+open to suggestions.''
 
 Repository configuration
 ========================
