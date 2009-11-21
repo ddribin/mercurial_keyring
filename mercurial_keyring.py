@@ -308,7 +308,8 @@ class PasswordHandler(object):
         https://repo.machine.com/repos/apps/module
         """
         parsed_url = urlparse(authuri)
-        return "%s://%s%s" % (parsed_url.scheme, parsed_url.netloc, parsed_url.path)
+        return "%s://%s%s" % (parsed_url.scheme, parsed_url.netloc,
+                              parsed_url.path)
 
     def _debug_reply(self, ui, msg, url, user, pwd):
         ui.debug("%s. Url: %s, user: %s, passwd: %s\n" % (
