@@ -126,11 +126,12 @@ try:
 except:
     from mercurial.httprepo import passwordmgr
 from mercurial.httprepo import httprepository
+from mercurial import mail
 
 import keyring
-import getpass
 from urlparse import urlparse
 import urllib2
+import smtplib, socket
 
 KEYRING_SERVICE = "Mercurial"
 
@@ -151,23 +152,36 @@ class PasswordStore(object):
     """
     def __init__(self):
         self.cache = dict()
-    def get_password(self, url, username):
+    def get_http_password(self, url, username):
         return keyring.get_password(KEYRING_SERVICE,
-                                    self._format_key(url, username))
-    def set_password(self, url, username, password):
+                                    self._format_http_key(url, username))
+    def set_http_password(self, url, username, password):
         keyring.set_password(KEYRING_SERVICE,
-                             self._format_key(url, username),
+                             self._format_http_key(url, username),
                              password)
-    def clear_password(self, url, username):
-        self.set_password(url, username, "")
-    def _format_key(self, url, username):
+    def clear_http_password(self, url, username):
+        self.set_http_password(url, username, "")
+    def _format_http_key(self, url, username):
         return "%s@@%s" % (username, url)
+    def get_smtp_password(self, machine, port, username):
+        return keyring.get_password(
+            KEYRING_SERVICE,
+            self._format_smtp_key(machine, port, username))
+    def set_smtp_password(self, machine, port, username, password):
+        keyring.set_password(
+            KEYRING_SERVICE,
+            self._format_smtp_key(machine, port, username),
+            password)
+    def clear_smtp_password(self, machine, port, username):
+        self.set_smtp_password(url, username, "")
+    def _format_smtp_key(self, machine, port, username):
+        return "%s@@%s:%s" % (username, machine, str(port))
 
 password_store = PasswordStore()
 
 ############################################################
 
-class PasswordHandler(object):
+class HTTPPasswordHandler(object):
     """
     Actual implementation of password handling (user prompting,
     configuration file searching, keyring save&restore).
@@ -236,7 +250,7 @@ class PasswordHandler(object):
         # Only if username is known (so we know the key) and we are
         # not after failure (so we don't reuse the bad password).
         if user and not after_bad_auth:
-            pwd = password_store.get_password(base_url, user)
+            pwd = password_store.get_http_password(base_url, user)
             if pwd:
                 self.pwd_cache[cache_key] = user, pwd
                 self._debug_reply(ui, _("Keyring password found"), 
@@ -264,7 +278,7 @@ class PasswordHandler(object):
             # Otherwise we won't be able to find the password so it
             # does not make much sense to preserve it
             ui.debug("Saving password for %s to keyring\n" % user)
-            password_store.set_password(base_url, user, pwd)
+            password_store.set_http_password(base_url, user, pwd)
 
         # Saving password to the memory cache
         self.pwd_cache[cache_key] = user, pwd
@@ -324,13 +338,115 @@ class PasswordHandler(object):
 def find_user_password(self, realm, authuri):
     """
     keyring-based implementation of username/password query
+    for HTTP(S) connections
 
     Passwords are saved in gnome keyring, OSX/Chain or other platform
     specific storage and keyed by the repository url
     """
     # Extend object attributes
     if not hasattr(self, '_pwd_handler'):
-        self._pwd_handler = PasswordHandler()
+        self._pwd_handler = HTTPPasswordHandler()
 
     return self._pwd_handler.find_auth(self, realm, authuri)
 
+############################################################
+
+def try_smtp_login(ui, smtp_obj, username, password):
+    """
+    Attempts smtp login on smtp_obj (smtplib.SMTP) using username and
+    password. 
+
+    Returns:
+    - True if login succeeded
+    - False if login failed due to the wrong credentials
+
+    Throws Abort exception if login failed for any other reason.
+
+    Immediately returns False if password is empty
+    """
+    if not password:
+        return False
+    try:
+        ui.note(_('(authenticating to mail server as %s)\n') %
+                 (username))
+        smtp_obj.login(username, password)
+        return True
+    except smtplib.SMTPException, inst:
+        if inst.smtp_code == 535:
+            ui.status(_("SMTP login failed: %s\n\n") % inst.smtp_error)
+            return False
+        else:
+            raise util.Abort(inst)
+
+def keyring_supported_smtp(ui, username):
+    """
+    keyring-integrated replacement for mercurial.mail._smtp
+    Used only when configuration file contains username, but
+    does not contain the password.
+
+    Most of the routine below is copied as-is from
+    mercurial.mail._smtp. The only changed part is
+    marked with #>>>>> and #<<<<< markers
+    """
+    local_hostname = ui.config('smtp', 'local_hostname')
+    s = smtplib.SMTP(local_hostname=local_hostname)
+    mailhost = ui.config('smtp', 'host')
+    if not mailhost:
+        raise util.Abort(_('no [smtp]host in hgrc - cannot send mail'))
+    mailport = int(ui.config('smtp', 'port', 25))
+    ui.note(_('sending mail: smtp host %s, port %s\n') %
+            (mailhost, mailport))
+    s.connect(host=mailhost, port=mailport)
+    if ui.configbool('smtp', 'tls'):
+        if not hasattr(socket, 'ssl'):
+            raise util.Abort(_("can't use TLS: Python SSL support "
+                               "not installed"))
+        ui.note(_('(using tls)\n'))
+        s.ehlo()
+        s.starttls()
+        s.ehlo()
+        
+    #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    stored = password = password_store.get_smtp_password(
+        mailhost, mailport, username)
+    # No need to check whether password was found as try_smtp_login
+    # just returns False if it is absent.
+    while not try_smtp_login(ui, s, username, password):
+        password = ui.getpass(_("Password for %s on %s:%d: ") % (username, mailhost, mailport))
+
+    if stored != password:
+        password_store.set_smtp_password(
+            mailhost, mailport, username, password)
+    #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+    def send(sender, recipients, msg):
+        try:
+            return s.sendmail(sender, recipients, msg)
+        except smtplib.SMTPRecipientsRefused, inst:
+            recipients = [r[1] for r in inst.recipients.values()]
+            raise util.Abort('\n' + '\n'.join(recipients))
+        except smtplib.SMTPException, inst:
+            raise util.Abort(inst)
+
+    return send
+
+############################################################
+
+orig_smtp = mail._smtp
+
+@monkeypatch_method(mail)
+def _smtp(ui):
+    """
+    build an smtp connection and return a function to send email
+
+    This is the monkeypatched version of _smtp(ui) function from
+    mercurial/mail.py. It calls the original unless username
+    without password is given in the configuration.
+    """
+    username = ui.config('smtp', 'username')
+    password = ui.config('smtp', 'password')
+
+    if username and not password:
+        return keyring_supported_smtp(ui, username)
+    else:
+        return orig_smtp(ui)
