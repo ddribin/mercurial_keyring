@@ -12,22 +12,23 @@
 mercurial_keyring
 =================
 
-Mercurial extension to securely save HTTP authentication passwords in
-password databases (Gnome Keyring, KDE KWallet, OSXKeyChain, specific
-solutions for Win32 and command line). Uses and wraps services of the
-keyring_ library.
+Mercurial extension to securely save HTTP and SMTP authentication
+passwords in password databases (Gnome Keyring, KDE KWallet,
+OSXKeyChain, specific solutions for Win32 and command line). Uses and
+wraps services of the keyring_ library.
 
 .. _keyring: http://pypi.python.org/pypi/keyring
 
 How does it work
 ================
 
-The extension prompts for the password on the first pull/push as it is
-done by default, but saves the given password (keyed by the
-combination of username and remote repository url) in the password
-database. On the next run it checks for the username in ``.hg/hgrc``,
-then for suitable password in the password database, and uses those
-credentials if found.
+The extension prompts for the password on the first pull/push (in case
+of HTTP) or first email (in case of SMTP), just like it is done by
+default, but saves the given password (keyed by the combination of
+username and remote repository url - for HTTP - or smtp server
+address - for SMTP) in the password database. On successive runs it
+checks for the username in ``.hg/hgrc``, then for suitable password in the
+password database, and uses those credentials if found.
 
 In case password turns out to be incorrect (either because it was
 invalid, or because it was changed on the server) it just prompts the
@@ -74,8 +75,8 @@ the current user). Refer to keyring_ docs for more details.
 single user may use more than one keyring-based script. Still, I am
 open to suggestions.''
 
-Repository configuration
-========================
+Repository configuration (HTTP)
+===============================
 
 Edit repository-local ``.hg/hgrc`` and save there the remote
 repository path and the username, but do not save the password. For
@@ -103,12 +104,39 @@ extension will use them without using the password database. If
 username is not given, extension will prompt for credentials every
 time, also without saving the password.
 
+Repository configuration (SMTP)
+===============================
+
+Edit either repository-local ``.hg/hgrc``, or ``~/.hgrc`` and set
+there all standard email and smtp properties, including smtp
+username, but without smtp password. For example:
+
+::
+
+    [email]
+    method = smtp
+    from = Joe Doe <Joe.Doe@remote.com>
+
+    [smtp]
+    host = smtp.gmail.com
+    port = 587
+    username = JoeDoe@gmail.com
+    tls = true
+
+Just as in case of HTTP, you *must* set username, but *must not* set
+password here to use the extension, in other cases it will revert to
+the default behaviour.
+
 Usage
 =====
 
-Configure the repository as above, then just pull and push.  
+Configure the repository as above, then just pull, push, etc.
 You should be asked for the password only once (per every
 username+remote_repository_url combination).
+
+Similarly, for email, configure as above and just email.
+Again, you will be asked for the password once (per every
+username+email_server_name+email_server_port).
 
 Implementation details
 ======================
