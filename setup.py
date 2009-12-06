@@ -18,10 +18,10 @@ setup(
 	keywords = "mercurial hg keyring password",
 	classifiers = [
 		'Development Status :: 4 - Beta',
-		'Environment :: Any',
+		'Environment :: Console',
 		'Intended Audience :: Developers',
 		'License :: OSI Approved :: BSD License',
-		'Operating System :: Any',
+		'Operating System :: OS Independent',
 		'Topic :: Software Development :: Libraries',
 		'Topic :: Software Development :: Libraries :: Python Modules',
 		'Topic :: Software Development :: Version Control'
