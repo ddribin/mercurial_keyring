@@ -47,21 +47,36 @@ Install keyring library:
 installed from the official archive (packages ``python-keyring``,
 ``python-keyring-gnome`` and ``python-keyring-kwallet``).
 
-Then either save ``mercurial_keyring.py`` anywhere and put the
-following in ~/.hgrc (or /etc/mercurial/hgrc):
+Then use one of the three options:
+
+a) download ``mercurial_keyring.py``, save it anywhere you like and
+put the following in ``~/.hgrc`` (or ``/etc/mercurial/hgrc``):
 
 ::
 
     [extensions]
     hgext.mercurial_keyring = /path/to/mercurial_keyring.py
 
-or save ``mercurial_keyring.py`` to ``mercurial/hgext`` directory and
+b) save ``mercurial_keyring.py`` to ``mercurial/hgext`` directory and
 use
 
 ::
 
     [extensions]
     hgext.mercurial_keyring = 
+
+c) install ``mercurial_keyring`` using ``easy_install``:
+
+::
+
+    easy_install mercurial_keyring
+
+and then configure ``~/.hgrc`` so:
+
+::
+
+    [extensions]
+    mercurial_keyring = 
 
 Password backend configuration
 ==============================
