@@ -1,11 +1,11 @@
-; -*- mode: rst -*-
+.. -*- mode: rst -*-
 
 =================
 mercurial_keyring
 =================
 
-``mercurial_keyring`` is a Mercurial_ extension to securely save HTTP
-and SMTP authentication passwords in password databases (Gnome
+``mercurial_keyring`` is a Mercurial_ extension used to securely save
+HTTP and SMTP authentication passwords in password databases (Gnome
 Keyring, KDE KWallet, OSXKeyChain, specific solutions for Win32 and
 command line). This extension uses and wraps services of the keyring_
 library.
@@ -18,15 +18,18 @@ How does it work
 
 The extension prompts for the password on the first pull/push (in case
 of HTTP) or first email (in case of SMTP), just like it is done by
-default, but saves the given password (keyed by the combination of
-username and remote repository url - for HTTP - or smtp server
-address - for SMTP) in the password database. On successive runs it
-checks for the username in ``.hg/hgrc``, then for suitable password in
-the password database, and uses those credentials (if found).
+default, but saves the password. On successive runs it checks for the
+username in ``.hg/hgrc``, then for suitable password in the password
+database, and uses those credentials (if found).
 
 In case password turns out to be incorrect (either because it was
 invalid, or because it was changed on the server) or missing it just
 prompts the user again.
+
+Passwords are identified by the combination of username and remote
+repository url (for HTTP) or username and smtp server address (for
+SMTP), so they can be reused between repositories if they access
+the same remote repository.
 
 Installation
 ============
@@ -56,7 +59,7 @@ To install as a package use ``easy_install``:
 
     easy_install mercurial_keyring
 
-and then configure ``~/.hgrc`` (or ``/etc/mercurial/hgrc``) so:
+and then enable it in ``~/.hgrc`` (or ``/etc/mercurial/hgrc``) using:
 
 ::
 
@@ -64,13 +67,16 @@ and then configure ``~/.hgrc`` (or ``/etc/mercurial/hgrc``) so:
     mercurial_keyring = 
 
 To install using individual file, download the
-``mercurial_keyring.py``_ file, save it anywhere you like, and
+`mercurial_keyring.py`_ file, save it anywhere you like, and
 put the following in ``~/.hgrc`` (or ``/etc/mercurial/hgrc``):
 
 ::
 
     [extensions]
     hgext.mercurial_keyring = /path/to/mercurial_keyring.py
+
+.. _the code: 
+.. _mercurial_keyring.py: http://bitbucket.org/Mekk/mercurial_keyring/src/tip/mercurial_keyring.py
 
 Password backend configuration
 ==============================
@@ -80,9 +86,9 @@ without configuration. Still, if necessary, it can be configured using
 ``~/keyringrc.cfg`` file (``keyringrc.cfg`` in the home directory of
 the current user). Refer to keyring_ docs for more details.
 
-''I considered handling similar options in hgrc, but decided that
+*I considered handling similar options in hgrc, but decided that
 single user may use more than one keyring-based script. Still, I am
-open to suggestions.''
+open to suggestions.*
 
 Repository configuration (HTTP)
 ===============================
@@ -117,8 +123,8 @@ Repository configuration (SMTP)
 ===============================
 
 Edit either repository-local ``.hg/hgrc``, or ``~/.hgrc`` and set
-there all standard email and smtp properties, including smtp
-username, but without smtp password. For example:
+there all standard email and smtp properties, including SMTP
+username, but without SMTP password. For example:
 
 ::
 
@@ -132,9 +138,9 @@ username, but without smtp password. For example:
     username = JoeDoe@gmail.com
     tls = true
 
-Just as in case of HTTP, you ``must`` set username, but ``must not``
-set password here to use the extension, in other cases it will revert
-to the default behavior.
+Just as in case of HTTP, you *must* set username, but *must not* set
+password here to use the extension, in other cases it will revert to
+the default behavior.
 
 Usage
 =====
@@ -152,7 +158,7 @@ Implementation details
 
 The extension is monkey-patching the mercurial ``passwordmgr`` class
 to replace the find_user_password method. Detailed order of operations
-is described in the comments inside the code.
+is described in the comments inside `the code`_.
 
 Development
 ===========
