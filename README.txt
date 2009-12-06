@@ -4,12 +4,14 @@
 mercurial_keyring
 =================
 
-Mercurial extension to securely save HTTP and SMTP authentication
-passwords in password databases (Gnome Keyring, KDE KWallet,
-OSXKeyChain, specific solutions for Win32 and command line). Uses and
-wraps services of the keyring_ library.
+``mercurial_keyring`` is a Mercurial_ extension to securely save HTTP
+and SMTP authentication passwords in password databases (Gnome
+Keyring, KDE KWallet, OSXKeyChain, specific solutions for Win32 and
+command line). This extension uses and wraps services of the keyring_
+library.
 
 .. _keyring: http://pypi.python.org/pypi/keyring
+.. _Mercurial: http://mercurial.selenic.com
 
 How does it work
 ================
@@ -19,56 +21,56 @@ of HTTP) or first email (in case of SMTP), just like it is done by
 default, but saves the given password (keyed by the combination of
 username and remote repository url - for HTTP - or smtp server
 address - for SMTP) in the password database. On successive runs it
-checks for the username in ``.hg/hgrc``, then for suitable password in the
-password database, and uses those credentials if found.
+checks for the username in ``.hg/hgrc``, then for suitable password in
+the password database, and uses those credentials (if found).
 
 In case password turns out to be incorrect (either because it was
-invalid, or because it was changed on the server) it just prompts the
-user again.
+invalid, or because it was changed on the server) or missing it just
+prompts the user again.
 
 Installation
 ============
 
-Install keyring library:
+Prerequisites
+-------------
+
+Install the keyring_ library:
 
 ::
 
     easy_install keyring
 
 (or ``pip keyring``). On Debian "Sid" the library can be also
-installed from the official archive (packages ``python-keyring``,
-``python-keyring-gnome`` and ``python-keyring-kwallet``).
+installed from the official archive (packages ``python-keyring``
+and either ``python-keyring-gnome`` or ``python-keyring-kwallet``).
 
-Then use one of the three options:
+Extension installation
+----------------------
 
-a) download ``mercurial_keyring.py``, save it anywhere you like and
+There are two possible ways of installing the extension: using PyPi package,
+or using individual file.
+
+To install as a package use ``easy_install``:
+
+::
+
+    easy_install mercurial_keyring
+
+and then configure ``~/.hgrc`` (or ``/etc/mercurial/hgrc``) so:
+
+::
+
+    [extensions]
+    mercurial_keyring = 
+
+To install using individual file, download the
+``mercurial_keyring.py``_ file, save it anywhere you like, and
 put the following in ``~/.hgrc`` (or ``/etc/mercurial/hgrc``):
 
 ::
 
     [extensions]
     hgext.mercurial_keyring = /path/to/mercurial_keyring.py
-
-b) save ``mercurial_keyring.py`` to ``mercurial/hgext`` directory and
-use
-
-::
-
-    [extensions]
-    hgext.mercurial_keyring = 
-
-c) install ``mercurial_keyring`` using ``easy_install``:
-
-::
-
-    easy_install mercurial_keyring
-
-and then configure ``~/.hgrc`` so:
-
-::
-
-    [extensions]
-    mercurial_keyring = 
 
 Password backend configuration
 ==============================
@@ -130,32 +132,34 @@ username, but without smtp password. For example:
     username = JoeDoe@gmail.com
     tls = true
 
-Just as in case of HTTP, you *must* set username, but *must not* set
-password here to use the extension, in other cases it will revert to
-the default behaviour.
+Just as in case of HTTP, you ``must`` set username, but ``must not``
+set password here to use the extension, in other cases it will revert
+to the default behavior.
 
 Usage
 =====
 
-Configure the repository as above, then just pull, push, etc.
-You should be asked for the password only once (per every
+Configure the repository as above, then just ``hg pull``, ``hg push``,
+etc.  You should be asked for the password only once (per every
 username+remote_repository_url combination).
 
-Similarly, for email, configure as above and just email.
+Similarly, for email, configure as above and just ``hg email``.
 Again, you will be asked for the password once (per every
 username+email_server_name+email_server_port).
 
 Implementation details
 ======================
 
-The extension is monkey-patching the mercurial passwordmgr class to
-replace the find_user_password method. Detailed order of operations
+The extension is monkey-patching the mercurial ``passwordmgr`` class
+to replace the find_user_password method. Detailed order of operations
 is described in the comments inside the code.
 
 Development
 ===========
 
-Development is tracked on http://bitbucket.org/Mekk/mercurial_keyring/
+Development is tracked on BitBucket, see 
+http://bitbucket.org/Mekk/mercurial_keyring/
+
 
 Additional notes
 ================
