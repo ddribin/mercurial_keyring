@@ -12,7 +12,7 @@ setup(
 	author_email = 'Marcin.Kasperski@mekk.waw.pl',
 	url = 'http://mekk.waw.pl',
 	description = 'Mercurial Keyring Extension',
-	long_description = '''mercurial_keyring preserves passwords via keyring (http://pypi.python.org/pypi/keyring) library, using OSX/Keychain, KDE KWallet, Gnome Keyring, or internally supported storage (also on Win32).''',
+	long_description = '''mercurial_keyring preserves passwords via keyring (http://pypi.python.org/pypi/keyring) library, using OSX/Keychain, KDE KWallet, Gnome Keyring, or internally supported storage (also on Win32). See http://mercurial.selenic.com/wiki/KeyringExtension for more info and http://bitbucket.org/Mekk/mercurial_keyring/ for source repository.''',
 	license = 'BSD',
 	py_modules = ['mercurial_keyring'],
 	keywords = "mercurial hg keyring password",
