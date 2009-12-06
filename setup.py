@@ -1,9 +1,13 @@
+
+
 try:
 	from setuptools import setup, find_packages
 except ImportError:
 	from ez_setup import use_setuptools
 	use_setuptools()
 	from setuptools import setup, find_packages
+
+long_description = open("README.txt").read()
 
 setup(
 	name = "mercurial_keyring",
@@ -12,8 +16,8 @@ setup(
 	author_email = 'Marcin.Kasperski@mekk.waw.pl',
 	url = 'http://mekk.waw.pl',
 	description = 'Mercurial Keyring Extension',
-	long_description = '''mercurial_keyring preserves passwords via keyring (http://pypi.python.org/pypi/keyring) library, using OSX/Keychain, KDE KWallet, Gnome Keyring, or internally supported storage (also on Win32). See http://mercurial.selenic.com/wiki/KeyringExtension for more info and http://bitbucket.org/Mekk/mercurial_keyring/ for source repository.''',
-	license = 'BSD',
+	long_description = long_description,
+	license = 'GPL',
 	py_modules = ['mercurial_keyring'],
 	keywords = "mercurial hg keyring password",
 	classifiers = [
