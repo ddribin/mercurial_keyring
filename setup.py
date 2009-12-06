@@ -1,4 +1,4 @@
-
+version = '0.3.2'
 
 try:
 	from setuptools import setup, find_packages
@@ -11,10 +11,10 @@ long_description = open("README.txt").read()
 
 setup(
 	name = "mercurial_keyring",
-	version = '0.3.1',
+	version = version,
 	author = 'Marcin Kasperski',
 	author_email = 'Marcin.Kasperski@mekk.waw.pl',
-	url = 'http://mekk.waw.pl',
+	url = 'http://bitbucket.org/Mekk/mercurial_keyring',
 	description = 'Mercurial Keyring Extension',
 	long_description = long_description,
 	license = 'GPL',
