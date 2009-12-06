@@ -5,3 +5,6 @@ syntax: regexp
 ^\.\#
 ^\.(project|pydevproject)$
 ^\.settings/
+^build/
+^dist/
+^mercurial_keyring\.egg-info/
