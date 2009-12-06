@@ -7,7 +7,7 @@ except ImportError:
 
 setup(
 	name = "mercurial_keyring",
-	version = '0.3.0',
+	version = '0.3.1',
 	author = 'Marcin Kasperski',
 	author_email = 'Marcin.Kasperski@mekk.waw.pl',
 	url = 'http://mekk.waw.pl',

@@ -160,6 +160,11 @@ The extension is monkey-patching the mercurial passwordmgr class to
 replace the find_user_password method. Detailed order of operations
 is described in the comments inside the code.
 
+Development
+===========
+
+Development is tracked on http://bitbucket.org/Mekk/mercurial_keyring/
+
 """
 
 from mercurial import hg, repo, util
