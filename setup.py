@@ -7,7 +7,7 @@ except ImportError:
 
 setup(
 	name = "mercurial_keyring",
-	version = '0.1.0',
+	version = '0.3.0',
 	author = 'Marcin Kasperski',
 	author_email = 'Marcin.Kasperski@mekk.waw.pl',
 	url = 'http://mekk.waw.pl',
@@ -26,7 +26,6 @@ setup(
 		'Topic :: Software Development :: Libraries :: Python Modules',
 		'Topic :: Software Development :: Version Control'
 		],
-
 	install_requires = ['keyring'],
 	zip_safe = True,
 	)
