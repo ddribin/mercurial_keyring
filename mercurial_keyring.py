@@ -153,7 +153,7 @@ class HTTPPasswordHandler(object):
 
         # Last resort: interactive prompt
         if not ui.interactive():
-            raise util.Abort(_('mercurial_keyring: http authorization required'))
+            raise util.Abort(_('mercurial_keyring: http authorization required but program used in non-interactive mode'))
         ui.write(_("http authorization required\n"))
         ui.status(_("realm: %s\n") % realm)
         if fixed_user:
