@@ -110,8 +110,16 @@ class HTTPPasswordHandler(object):
             self.last_reply = dict(realm=realm,authuri=authuri,user=user)
             return user, pwd
 
+        # Loading username and maybe password from [auth] in .hg/hgrc
+        nuser, pwd, prefix_url = self.load_hgrc_auth(ui, base_url)
+        if prefix_url:
+            keyring_url = prefix_url
+        else:
+            keyring_url = base_url
+        ui.debug("keyring URL: %s\n" % keyring_url)
+
         # Checking the memory cache (there may be many http calls per command)
-        cache_key = (realm, base_url)
+        cache_key = (realm, keyring_url)
         if not after_bad_auth:
             cached_auth = self.pwd_cache.get(cache_key)
             if cached_auth:
@@ -121,8 +129,6 @@ class HTTPPasswordHandler(object):
                 self.last_reply = dict(realm=realm,authuri=authuri,user=user)
                 return user, pwd
 
-        # Loading username and maybe password from [auth] in .hg/hgrc
-        nuser, pwd = self.load_hgrc_auth(ui, base_url)
         if nuser:
             if user:
                 raise util.Abort(_('mercurial_keyring: username for %s specified both in repository path (%s) and in .hg/hgrc/[auth] (%s). Please, leave only one of those' % (base_url, user, nuser)))
@@ -140,7 +146,7 @@ class HTTPPasswordHandler(object):
         # Only if username is known (so we know the key) and we are
         # not after failure (so we don't reuse the bad password).
         if user and not after_bad_auth:
-            pwd = password_store.get_http_password(base_url, user)
+            pwd = password_store.get_http_password(keyring_url, user)
             if pwd:
                 self.pwd_cache[cache_key] = user, pwd
                 self._debug_reply(ui, _("Keyring password found"), 
@@ -168,7 +174,7 @@ class HTTPPasswordHandler(object):
             # Otherwise we won't be able to find the password so it
             # does not make much sense to preserve it
             ui.debug("Saving password for %s to keyring\n" % user)
-            password_store.set_http_password(base_url, user, pwd)
+            password_store.set_http_password(keyring_url, user, pwd)
 
         # Saving password to the memory cache
         self.pwd_cache[cache_key] = user, pwd
@@ -196,16 +202,36 @@ class HTTPPasswordHandler(object):
 
         # Workaround: we recreate the repository object
         repo_root = ui.config("bundle", "mainreporoot")
+
+        from mercurial.ui import ui as _ui
+        import os
+        local_ui = _ui(ui)
         if repo_root:
-            from mercurial.ui import ui as _ui
-            import os
-            local_ui = _ui(ui)
             local_ui.readconfig(os.path.join(repo_root, ".hg", "hgrc"))
-            local_passwordmgr = passwordmgr(local_ui)
-            auth_token = local_passwordmgr.readauthtoken(base_url)
-            if auth_token:
-                return auth_token.get('username'), auth_token.get('password')
+        local_passwordmgr = passwordmgr(local_ui)
+        auth_token = local_passwordmgr.readauthtoken(base_url)
+        local_ui.debug("auth token: " + repr(auth_token) + "\n")
+        if auth_token:
+            username = auth_token.get('username')
+            password = auth_token.get('password')
+            prefix = auth_token.get('prefix')
+            shortest_url = self.shortest_url(base_url, prefix)
+            local_ui.debug("shortest URL: " + shortest_url + "\n")
+            return username, password, shortest_url
+
         return None, None
+
+    def shortest_url(self, base_url, prefix):
+        if not prefix or prefix == '*':
+            return base_url
+        scheme, hostpath = base_url.split('://', 1)
+        p = prefix.split('://', 1)
+        if len(p) > 1:
+            prefix_host_path = p[1]
+        else:
+            prefix_host_path = prefix
+        shortest_url = scheme + '://' + prefix_host_path
+        return shortest_url
 
     def canonical_url(self, authuri):
         """
