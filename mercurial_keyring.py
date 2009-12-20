@@ -110,7 +110,7 @@ class HTTPPasswordHandler(object):
             self.last_reply = dict(realm=realm,authuri=authuri,user=user)
             return user, pwd
 
-        # Loading username and maybe password from [auth] in .hg/hgrc
+        # Loading username and maybe password and prefix URL from [auth] in .hg/hgrc
         nuser, pwd, prefix_url = self.load_hgrc_auth(ui, base_url)
         if prefix_url:
             keyring_url = prefix_url
@@ -210,13 +210,11 @@ class HTTPPasswordHandler(object):
             local_ui.readconfig(os.path.join(repo_root, ".hg", "hgrc"))
         local_passwordmgr = passwordmgr(local_ui)
         auth_token = local_passwordmgr.readauthtoken(base_url)
-        local_ui.debug("auth token: " + repr(auth_token) + "\n")
         if auth_token:
             username = auth_token.get('username')
             password = auth_token.get('password')
             prefix = auth_token.get('prefix')
             shortest_url = self.shortest_url(base_url, prefix)
-            local_ui.debug("shortest URL: " + shortest_url + "\n")
             return username, password, shortest_url
 
         return None, None
